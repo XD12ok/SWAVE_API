@@ -23,47 +23,55 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
     // Auth (public)
-    Route::post('auth/signup', [SignupController::class, 'store']);
-    Route::post('auth/login', [LoginController::class, 'store']);
+    Route::post('auth/signup', [SignupController::class, 'store'])->middleware('throttle:auth');
+    Route::post('auth/login', [LoginController::class, 'store'])->middleware('throttle:auth');
     Route::post('auth/logout', [LogoutController::class, 'destroy']);
     Route::get('auth/me', [LoginController::class, 'me']);
     Route::get('auth/verify', [VerifyEmailController::class, 'show']);
-    Route::post('auth/resend-verification', [ResendVerificationController::class, 'store']);
-    Route::post('auth/forgot-password', [ForgotPasswordController::class, 'store']);
-    Route::post('auth/reset-password', [ResetPasswordController::class, 'store']);
+    Route::post('auth/resend-verification', [ResendVerificationController::class, 'store'])->middleware('throttle:auth-slow');
+    Route::post('auth/forgot-password', [ForgotPasswordController::class, 'store'])->middleware('throttle:auth-slow');
+    Route::post('auth/reset-password', [ResetPasswordController::class, 'store'])->middleware('throttle:auth-slow');
 
     // Public (read / storefront) — matches original SPA behaviour
-    Route::get('catalog', [CatalogController::class, 'index']);
-    Route::get('charms', [CharmController::class, 'index']);
-    Route::get('charms/{id}', [CharmController::class, 'show']);
-    Route::get('categories', [CategoryController::class, 'index']);
-    Route::get('categories/{id}', [CategoryController::class, 'show']);
-    Route::get('orders', [OrderController::class, 'index']);
-    Route::get('orders/{id}', [OrderController::class, 'show']);
-    Route::get('orders/{id}/payment', [PaymentController::class, 'show']);
-    Route::get('inventory', [InventoryController::class, 'index']);
-    Route::get('inventory/logs', [InventoryController::class, 'logs']);
-    Route::get('admin/alerts', [AdminController::class, 'index']);
-    Route::get('shipping-cost', [ShippingController::class, 'show']);
-    Route::get('events', [EventController::class, 'index']);
-    Route::post('check-stock', [InventoryController::class, 'checkStock']);
-    Route::post('kasir', [KasirController::class, 'store']);
-    Route::post('orders', [OrderController::class, 'store']);
-    Route::patch('orders/{id}', [OrderController::class, 'update']);
-    Route::patch('orders/{id}/payment', [PaymentController::class, 'update']);
-    Route::post('charms', [CharmController::class, 'store']);
-    Route::patch('charms/{id}', [CharmController::class, 'update']);
-    Route::delete('charms/{id}', [CharmController::class, 'destroy']);
-    Route::post('categories', [CategoryController::class, 'store']);
-    Route::patch('categories/{id}', [CategoryController::class, 'update']);
-    Route::delete('categories/{id}', [CategoryController::class, 'destroy']);
-    Route::post('inventory/cleanup', [InventoryController::class, 'cleanup']);
-    Route::post('upload', [UploadController::class, 'store']);
+    Route::middleware('throttle:api')->group(function () {
+        Route::get('catalog', [CatalogController::class, 'index']);
+        Route::get('charms', [CharmController::class, 'index']);
+        Route::get('charms/{id}', [CharmController::class, 'show']);
+        Route::get('categories', [CategoryController::class, 'index']);
+        Route::get('categories/{id}', [CategoryController::class, 'show']);
+        Route::get('orders', [OrderController::class, 'index']);
+        Route::get('orders/{id}', [OrderController::class, 'show']);
+        Route::get('orders/{id}/payment', [PaymentController::class, 'show']);
+        Route::get('inventory', [InventoryController::class, 'index']);
+        Route::get('inventory/logs', [InventoryController::class, 'logs']);
+        Route::get('admin/alerts', [AdminController::class, 'index']);
+        Route::get('shipping-cost', [ShippingController::class, 'show']);
+        Route::get('events', [EventController::class, 'index']);
+    });
+    Route::middleware('throttle:store')->group(function () {
+        Route::post('check-stock', [InventoryController::class, 'checkStock']);
+        Route::post('kasir', [KasirController::class, 'store']);
+    });
+    Route::middleware('throttle:orders')->group(function () {
+        Route::post('orders', [OrderController::class, 'store']);
+        Route::patch('orders/{id}', [OrderController::class, 'update']);
+        Route::patch('orders/{id}/payment', [PaymentController::class, 'update']);
+    });
+    Route::middleware('throttle:admin')->group(function () {
+        Route::post('charms', [CharmController::class, 'store']);
+        Route::patch('charms/{id}', [CharmController::class, 'update']);
+        Route::delete('charms/{id}', [CharmController::class, 'destroy']);
+        Route::post('categories', [CategoryController::class, 'store']);
+        Route::patch('categories/{id}', [CategoryController::class, 'update']);
+        Route::delete('categories/{id}', [CategoryController::class, 'destroy']);
+        Route::post('inventory/cleanup', [InventoryController::class, 'cleanup']);
+    });
+    Route::post('upload', [UploadController::class, 'store'])->middleware('throttle:upload');
 
     // Authenticated (account only) — demonstrates auth middleware
     Route::middleware('auth.session')->group(function () {
-        Route::patch('account/profile', [AccountController::class, 'updateProfile']);
-        Route::put('account/password', [AccountController::class, 'updatePassword']);
+        Route::patch('account/profile', [AccountController::class, 'updateProfile'])->middleware('throttle:account');
+        Route::put('account/password', [AccountController::class, 'updatePassword'])->middleware('throttle:account-password');
         Route::get('account/orders', [AccountController::class, 'orders']);
     });
 });
